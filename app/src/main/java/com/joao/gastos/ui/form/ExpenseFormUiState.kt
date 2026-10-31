@@ -12,4 +12,5 @@ data class ExpenseFormUiState(
     val noteError: String? = null,
     val isEditing: Boolean = false,
     val loading: Boolean = false,
+    val saving: Boolean = false,
 )

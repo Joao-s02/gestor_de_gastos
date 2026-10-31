@@ -130,8 +130,12 @@ fun ExpenseFormScreen(
                 supportingText = { Text(state.noteError ?: "${state.note.length}/140") },
                 modifier = Modifier.fillMaxWidth(),
             )
-            Button(onClick = viewModel::save, modifier = Modifier.fillMaxWidth()) {
-                Text("Guardar")
+            Button(
+                onClick = viewModel::save,
+                enabled = !state.saving,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text(if (state.saving) "Guardando" else "Guardar")
             }
             TextButton(onClick = onCancel, modifier = Modifier.fillMaxWidth()) {
                 Text("Cancelar")

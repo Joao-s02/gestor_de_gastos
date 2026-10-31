@@ -28,6 +28,7 @@ class ExpenseFormViewModel(
     private val amountError = MutableStateFlow<String?>(null)
     private val noteError = MutableStateFlow<String?>(null)
     private val loading = MutableStateFlow(expenseId != null && !savedState.contains(KEY_AMOUNT))
+    private val saving = MutableStateFlow(false)
 
     private val _saved = MutableSharedFlow<Unit>()
     val saved = _saved
@@ -39,7 +40,8 @@ class ExpenseFormViewModel(
         amountError,
         noteError,
         loading,
-    ) { fields, amountMessage, noteMessage, isLoading ->
+        saving,
+    ) { fields, amountMessage, noteMessage, isLoading, isSaving ->
         ExpenseFormUiState(
             amountText = fields.amount,
             epochDay = fields.day,
@@ -49,6 +51,7 @@ class ExpenseFormViewModel(
             noteError = noteMessage,
             isEditing = expenseId != null,
             loading = isLoading,
+            saving = isSaving,
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), ExpenseFormUiState(isEditing = expenseId != null, loading = loading.value))
 
@@ -87,6 +90,7 @@ class ExpenseFormViewModel(
     }
 
     fun save() {
+        if (saving.value) return
         val noteText = note.value.trim()
         if (noteText.length > MAX_NOTE) {
             noteError.value = "Máximo $MAX_NOTE caracteres"
@@ -98,6 +102,7 @@ class ExpenseFormViewModel(
             return
         }
         val money = Money.parse(amount.value) ?: return
+        saving.value = true
         viewModelScope.launch {
             val createdAt = savedState.get<Long>(KEY_CREATED_AT) ?: System.currentTimeMillis()
             repository.upsert(
