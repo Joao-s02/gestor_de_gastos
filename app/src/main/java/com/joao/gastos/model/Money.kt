@@ -22,14 +22,10 @@ value class Money(val cents: Long) {
         }
 
         fun parse(raw: String): Money? {
-            val amount = normalize(raw) ?: return null
+            val amount = toAmount(raw) ?: return null
             if (amount.signum() <= 0) return null
-            val cents = try {
-                amount.movePointRight(2).setScale(0, RoundingMode.UNNECESSARY).longValueExact()
-            } catch (_: ArithmeticException) {
-                return null
-            }
-            if (cents <= 0L || cents > MAX_CENTS) return null
+            val cents = amount.toCents() ?: return null
+            if (cents > MAX_CENTS) return null
             return Money(cents)
         }
 
@@ -48,55 +44,56 @@ value class Money(val cents: Long) {
 
         private fun hasTooManyDecimals(raw: String): Boolean {
             val text = cleaned(raw)
-            val separator = text.lastIndexOfAny(DECIMAL_MARKS)
-            if (separator < 0) return false
-            val fractionLength = text.length - separator - 1
-            val onlyOneMark = text.count { it == ',' || it == '.' } == 1
-            if (fractionLength == 3 && onlyOneMark) return false
-            return fractionLength > 2
+            val decimalAt = decimalSeparatorIndex(text)
+            return decimalAt >= 0 && fractionOf(text, decimalAt).length > 2
         }
 
-        private fun normalize(raw: String): BigDecimal? {
+        private fun toAmount(raw: String): BigDecimal? {
             val text = cleaned(raw)
-            if (text.isEmpty() || text.any { it != ',' && it != '.' && !it.isDigit() }) return null
-            val lastComma = text.lastIndexOf(',')
-            val lastDot = text.lastIndexOf('.')
-            val decimalIndex = when {
-                lastComma >= 0 && lastDot >= 0 -> maxOf(lastComma, lastDot)
-                lastComma >= 0 || lastDot >= 0 -> {
-                    val index = maxOf(lastComma, lastDot)
-                    val fractionLength = text.length - index - 1
-                    val onlyOneMark = text.count { it == ',' || it == '.' } == 1
-                    if (fractionLength == 3 && onlyOneMark) -1 else index
-                }
-                else -> -1
-            }
-            val normalized = if (decimalIndex >= 0) {
-                val fraction = text.substring(decimalIndex + 1)
+            if (text.isEmpty() || text.any { !it.isDigit() && it != ',' && it != '.' }) return null
+            val decimalAt = decimalSeparatorIndex(text)
+            val plain = if (decimalAt >= 0) {
+                val fraction = fractionOf(text, decimalAt)
                 if (fraction.length > 2 || fraction.any { !it.isDigit() }) return null
-                val integer = text.substring(0, decimalIndex).filter { it.isDigit() }
+                val integer = digitsBefore(text, decimalAt)
                 if (integer.isEmpty() && fraction.isEmpty()) return null
                 if (fraction.isEmpty()) integer.ifEmpty { "0" } else "${integer.ifEmpty { "0" }}.$fraction"
             } else {
-                if ((lastComma >= 0 || lastDot >= 0) && !isThousands(text)) return null
+                if (text.any { it == ',' || it == '.' } && !isThousandsGrouped(text)) return null
                 text.filter { it.isDigit() }.ifEmpty { return null }
             }
-            return try {
-                BigDecimal(normalized)
-            } catch (_: NumberFormatException) {
-                null
-            }
+            return plain.toBigDecimalOrNull()
         }
 
-        private fun isThousands(text: String): Boolean {
+        private fun decimalSeparatorIndex(text: String): Int {
+            val lastComma = text.lastIndexOf(',')
+            val lastDot = text.lastIndexOf('.')
+            if (lastComma < 0 && lastDot < 0) return -1
+            if (lastComma >= 0 && lastDot >= 0) return maxOf(lastComma, lastDot)
+            val onlyMark = maxOf(lastComma, lastDot)
+            val looksLikeThousands = fractionOf(text, onlyMark).length == 3 && text.count { it == ',' || it == '.' } == 1
+            return if (looksLikeThousands) -1 else onlyMark
+        }
+
+        private fun isThousandsGrouped(text: String): Boolean {
             val parts = text.split(',', '.')
             if (parts.size < 2) return true
             if (parts.first().isEmpty() || parts.first().length > 3 || parts.first().any { !it.isDigit() }) return false
             return parts.drop(1).all { part -> part.length == 3 && part.all { it.isDigit() } }
         }
 
-        private fun cleaned(raw: String): String = raw.trim().replace(" ", "").replace("\u00a0", "")
+        private fun BigDecimal.toCents(): Long? {
+            return try {
+                movePointRight(2).setScale(0, RoundingMode.UNNECESSARY).longValueExact()
+            } catch (_: ArithmeticException) {
+                null
+            }
+        }
 
-        private val DECIMAL_MARKS = charArrayOf(',', '.')
+        private fun fractionOf(text: String, separatorAt: Int): String = text.substring(separatorAt + 1)
+
+        private fun digitsBefore(text: String, separatorAt: Int): String = text.substring(0, separatorAt).filter { it.isDigit() }
+
+        private fun cleaned(raw: String): String = raw.trim().replace(" ", "").replace("\u00a0", "")
     }
 }

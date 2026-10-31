@@ -2,32 +2,32 @@ package com.joao.gastos.ui.list
 
 import com.joao.gastos.model.Category
 import com.joao.gastos.model.Expense
+import com.joao.gastos.model.MovementType
 import java.time.LocalDate
 import java.time.YearMonth
 
 sealed interface ExpenseListUiState {
     val month: YearMonth
-    val category: Category?
-    val pendingDelete: Expense?
 
     data class Loading(
         override val month: YearMonth,
-        override val category: Category?,
-        override val pendingDelete: Expense? = null,
     ) : ExpenseListUiState
 
     data class Empty(
         override val month: YearMonth,
-        override val category: Category?,
-        override val pendingDelete: Expense? = null,
+    ) : ExpenseListUiState
+
+    data class Error(
+        override val month: YearMonth,
+        val message: String,
     ) : ExpenseListUiState
 
     data class Ready(
         override val month: YearMonth,
-        override val category: Category?,
         val expenses: List<Expense>,
-        val totalCents: Long,
-        override val pendingDelete: Expense? = null,
+        val incomeCents: Long,
+        val expenseCents: Long,
+        val balanceCents: Long,
     ) : ExpenseListUiState
 }
 
@@ -42,6 +42,7 @@ object ExpenseListSamples {
             category = Category.Comida,
             note = "Menú del día",
             createdAt = 3,
+            type = MovementType.GASTO,
         ),
         Expense(
             id = 2,
@@ -50,31 +51,28 @@ object ExpenseListSamples {
             category = Category.Transporte,
             note = "",
             createdAt = 2,
+            type = MovementType.GASTO,
         ),
         Expense(
             id = 3,
-            amountCents = 4_599,
-            epochDay = LocalDate.of(2026, 10, 12).toEpochDay().toInt(),
-            category = Category.Hogar,
-            note = "Bombilla de la cocina que se fundió el martes por la noche",
+            amountCents = 180_000,
+            epochDay = LocalDate.of(2026, 10, 1).toEpochDay().toInt(),
+            category = Category.Servicios,
+            note = "Nómina",
             createdAt = 1,
+            type = MovementType.INGRESO,
         ),
     )
 
     val ready = ExpenseListUiState.Ready(
         month = month,
-        category = null,
         expenses = expenses,
-        totalCents = expenses.sumOf { it.amountCents },
+        incomeCents = 180_000,
+        expenseCents = 1_490,
+        balanceCents = 178_510,
     )
 
-    val empty = ExpenseListUiState.Empty(
-        month = month,
-        category = Category.Ocio,
-    )
-
-    val loading = ExpenseListUiState.Loading(
-        month = month,
-        category = null,
-    )
+    val empty = ExpenseListUiState.Empty(month)
+    val loading = ExpenseListUiState.Loading(month)
+    val error = ExpenseListUiState.Error(month, "No se pudieron cargar los movimientos")
 }

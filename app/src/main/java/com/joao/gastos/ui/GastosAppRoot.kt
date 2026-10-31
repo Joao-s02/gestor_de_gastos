@@ -6,6 +6,7 @@ import androidx.lifecycle.createSavedStateHandle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
+import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -29,14 +30,22 @@ fun GastosAppRoot(repository: ExpenseRepository) {
                     }
                 },
             )
+            val justSaved = it.savedStateHandle.get<Boolean>(SAVED) == true
             ExpenseListScreen(
                 viewModel = viewModel,
+                justSaved = justSaved,
+                onSavedMessageShown = { it.savedStateHandle[SAVED] = false },
                 onAdd = { navController.navigate(FORM) },
                 onEdit = { id -> navController.navigate("form/$id") },
             )
         }
         composable(FORM) {
-            FormDestination(repository = repository, expenseId = null, onDone = { navController.popBackStack() })
+            FormDestination(
+                repository = repository,
+                expenseId = null,
+                onSaved = { markSavedAndClose(navController) },
+                onCancel = { navController.popBackStack() },
+            )
         }
         composable(
             FORM_WITH_ID,
@@ -45,17 +54,24 @@ fun GastosAppRoot(repository: ExpenseRepository) {
             FormDestination(
                 repository = repository,
                 expenseId = entry.arguments?.getLong("id"),
-                onDone = { navController.popBackStack() },
+                onSaved = { markSavedAndClose(navController) },
+                onCancel = { navController.popBackStack() },
             )
         }
     }
+}
+
+private fun markSavedAndClose(navController: NavHostController) {
+    navController.previousBackStackEntry?.savedStateHandle?.set(SAVED, true)
+    navController.popBackStack()
 }
 
 @Composable
 private fun FormDestination(
     repository: ExpenseRepository,
     expenseId: Long?,
-    onDone: () -> Unit,
+    onSaved: () -> Unit,
+    onCancel: () -> Unit,
 ) {
     val viewModel = viewModel<ExpenseFormViewModel>(
         factory = viewModelFactory {
@@ -65,11 +81,12 @@ private fun FormDestination(
         },
     )
     LaunchedEffect(viewModel) {
-        viewModel.saved.collect { onDone() }
+        viewModel.saved.collect { onSaved() }
     }
-    ExpenseFormScreen(viewModel = viewModel, onCancel = onDone)
+    ExpenseFormScreen(viewModel = viewModel, onCancel = onCancel)
 }
 
 private const val LIST = "list"
 private const val FORM = "form"
 private const val FORM_WITH_ID = "form/{id}"
+private const val SAVED = "saved"

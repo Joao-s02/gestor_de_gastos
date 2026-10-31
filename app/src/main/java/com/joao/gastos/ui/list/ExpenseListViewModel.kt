@@ -4,13 +4,14 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.joao.gastos.data.ExpenseRepository
-import com.joao.gastos.model.Category
 import com.joao.gastos.model.Expense
+import com.joao.gastos.model.MovementType
 import java.time.YearMonth
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
@@ -23,53 +24,36 @@ class ExpenseListViewModel(
     private val savedState: SavedStateHandle,
 ) : ViewModel() {
     private val month = savedState.getStateFlow(KEY_MONTH, YearMonth.now().toString())
-    private val categoryName = savedState.getStateFlow(KEY_CATEGORY, "")
-    private val pendingDelete = MutableStateFlow<Expense?>(null)
+    private val retry = MutableStateFlow(0)
 
-    val uiState: StateFlow<ExpenseListUiState> = combine(
-        month,
-        categoryName,
-        pendingDelete,
-    ) { monthText, categoryText, pending ->
-        Triple(YearMonth.parse(monthText), categoryText.toCategory(), pending)
-    }.flatMapLatest { (visibleMonth, category, pending) ->
-        repository.observe(visibleMonth, category).map { rows ->
-            rows.toUiState(visibleMonth, category, pending)
-        }
+    val uiState: StateFlow<ExpenseListUiState> = combine(month, retry) { monthText, _ ->
+        YearMonth.parse(monthText)
+    }.flatMapLatest { visibleMonth ->
+        repository.observe(visibleMonth, null)
+            .map { rows -> rows.toUiState(visibleMonth) }
+            .catch { emit(ExpenseListUiState.Error(visibleMonth, "No se pudieron cargar los movimientos")) }
     }.stateIn(
         viewModelScope,
         SharingStarted.WhileSubscribed(5_000),
-        ExpenseListUiState.Loading(
-            month = YearMonth.parse(month.value),
-            category = categoryName.value.toCategory(),
-        ),
+        ExpenseListUiState.Loading(YearMonth.parse(month.value)),
     )
 
     fun showPreviousMonth() = shiftMonth(-1)
 
     fun showNextMonth() = shiftMonth(1)
 
-    fun selectCategory(category: Category?) {
-        savedState[KEY_CATEGORY] = category?.name.orEmpty()
+    fun selectMonth(value: YearMonth) {
+        savedState[KEY_MONTH] = value.toString()
+    }
+
+    fun retry() {
+        retry.value += 1
     }
 
     fun confirmDelete(expense: Expense) {
         viewModelScope.launch {
             repository.delete(expense)
-            pendingDelete.value = expense
         }
-    }
-
-    fun undoDelete() {
-        val expense = pendingDelete.value ?: return
-        viewModelScope.launch {
-            repository.upsert(expense)
-            pendingDelete.value = null
-        }
-    }
-
-    fun clearPendingDelete() {
-        pendingDelete.value = null
     }
 
     private fun shiftMonth(months: Long) {
@@ -77,25 +61,20 @@ class ExpenseListViewModel(
         savedState[KEY_MONTH] = current.plusMonths(months).toString()
     }
 
-    private fun String.toCategory(): Category? = if (isEmpty()) null else Category.valueOf(this)
-
-    private fun List<Expense>.toUiState(
-        month: YearMonth,
-        category: Category?,
-        pending: Expense?,
-    ): ExpenseListUiState {
-        if (isEmpty()) return ExpenseListUiState.Empty(month, category, pending)
+    private fun List<Expense>.toUiState(month: YearMonth): ExpenseListUiState {
+        if (isEmpty()) return ExpenseListUiState.Empty(month)
+        val income = filter { it.type == MovementType.INGRESO }.sumOf { it.amountCents }
+        val spent = filter { it.type == MovementType.GASTO }.sumOf { it.amountCents }
         return ExpenseListUiState.Ready(
             month = month,
-            category = category,
             expenses = this,
-            totalCents = sumOf { it.amountCents },
-            pendingDelete = pending,
+            incomeCents = income,
+            expenseCents = spent,
+            balanceCents = income - spent,
         )
     }
 
     private companion object {
         const val KEY_MONTH = "month"
-        const val KEY_CATEGORY = "category"
     }
 }

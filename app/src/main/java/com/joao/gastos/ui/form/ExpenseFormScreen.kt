@@ -1,46 +1,66 @@
 package com.joao.gastos.ui.form
 
+import android.content.res.Configuration
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ExposedDropdownMenuBox
-import androidx.compose.material3.ExposedDropdownMenuDefaults
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.MenuAnchorType
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.joao.gastos.model.Category
+import com.joao.gastos.model.MovementType
+import com.joao.gastos.ui.form.ExpenseFormUiState.Companion.NOTE_LIMIT
+import com.joao.gastos.ui.icon
+import com.joao.gastos.ui.theme.GastosTheme
+import com.joao.gastos.ui.toEpochDayLabel
+import com.joao.gastos.ui.toUtcStartMillis
+import java.text.NumberFormat
 import java.time.Instant
-import java.time.LocalDate
 import java.time.ZoneOffset
-import java.time.format.DateTimeFormatter
-import java.time.format.FormatStyle
-import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -50,128 +70,266 @@ fun ExpenseFormScreen(
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     var showDatePicker by rememberSaveable { mutableStateOf(false) }
-    var categoryMenuOpen by rememberSaveable { mutableStateOf(false) }
+    val amountFocus = remember { FocusRequester() }
+
+    LaunchedEffect(state.isEditing) {
+        if (!state.isEditing && state is ExpenseFormUiState.Editing) {
+            amountFocus.requestFocus()
+        }
+    }
 
     Scaffold(
+        containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             TopAppBar(
-                title = { Text(if (state.isEditing) "Editar gasto" else "Nuevo gasto") },
+                title = {
+                    Text(
+                        if (state.isEditing) "Editar movimiento" else "Agregar movimiento",
+                        style = MaterialTheme.typography.headlineSmall,
+                    )
+                },
                 navigationIcon = {
-                    IconButton(onClick = onCancel) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Cancelar")
+                    IconButton(onClick = onCancel, modifier = Modifier.size(48.dp)) {
+                        Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = "Cancelar")
                     }
                 },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.surface,
+                    titleContentColor = MaterialTheme.colorScheme.onSurface,
+                ),
             )
         },
     ) { padding ->
-        if (state.loading) {
-            CircularProgressIndicator(modifier = Modifier.padding(padding).padding(24.dp))
-            return@Scaffold
-        }
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            OutlinedTextField(
-                value = state.amountText,
-                onValueChange = viewModel::onAmountChange,
-                label = { Text("Importe") },
-                isError = state.amountError != null,
-                supportingText = state.amountError?.let { message -> { Text(message) } },
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth(),
-            )
-            OutlinedTextField(
-                value = state.epochDay.toDateLabel(),
-                onValueChange = {},
-                readOnly = true,
-                label = { Text("Fecha") },
-                modifier = Modifier.fillMaxWidth(),
-            )
-            TextButton(onClick = { showDatePicker = true }) { Text("Cambiar fecha") }
-            ExposedDropdownMenuBox(
-                expanded = categoryMenuOpen,
-                onExpandedChange = { categoryMenuOpen = it },
-            ) {
-                OutlinedTextField(
-                    value = state.category.label,
-                    onValueChange = {},
-                    readOnly = true,
-                    label = { Text("Categoría") },
-                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = categoryMenuOpen) },
+        when (val current = state) {
+            is ExpenseFormUiState.Loading -> {
+                CircularProgressIndicator(modifier = Modifier.padding(padding).padding(24.dp), color = MaterialTheme.colorScheme.primary)
+            }
+            is ExpenseFormUiState.Editing -> {
+                EditingForm(
+                    state = current,
+                    amountFocus = amountFocus,
+                    onAmountChange = viewModel::onAmountChange,
+                    onTypeChange = viewModel::onTypeChange,
+                    onCategoryChange = viewModel::onCategoryChange,
+                    onNoteChange = viewModel::onNoteChange,
+                    onPickDate = { showDatePicker = true },
+                    onSave = viewModel::save,
+                    onCancel = onCancel,
                     modifier = Modifier
-                        .menuAnchor(MenuAnchorType.PrimaryNotEditable)
-                        .fillMaxWidth(),
+                        .fillMaxSize()
+                        .padding(padding)
+                        .padding(horizontal = 16.dp, vertical = 8.dp),
                 )
-                ExposedDropdownMenu(
-                    expanded = categoryMenuOpen,
-                    onDismissRequest = { categoryMenuOpen = false },
+            }
+        }
+    }
+
+    val editing = state as? ExpenseFormUiState.Editing
+    if (showDatePicker && editing != null) {
+        ExpenseDatePicker(
+            epochDay = editing.epochDay,
+            onConfirm = { day ->
+                viewModel.onDateChange(day)
+                showDatePicker = false
+            },
+            onDismiss = { showDatePicker = false },
+        )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun EditingForm(
+    state: ExpenseFormUiState.Editing,
+    amountFocus: FocusRequester,
+    onAmountChange: (String) -> Unit,
+    onTypeChange: (MovementType) -> Unit,
+    onCategoryChange: (Category) -> Unit,
+    onNoteChange: (String) -> Unit,
+    onPickDate: () -> Unit,
+    onSave: () -> Unit,
+    onCancel: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val currency = remember { NumberFormat.getCurrencyInstance().currency?.symbol.orEmpty() }
+    Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+            MovementType.entries.forEachIndexed { index, type ->
+                SegmentedButton(
+                    selected = state.type == type,
+                    onClick = { onTypeChange(type) },
+                    shape = SegmentedButtonDefaults.itemShape(index, MovementType.entries.size),
+                    colors = SegmentedButtonDefaults.colors(
+                        activeContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                        activeContentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                    ),
                 ) {
-                    Category.entries.forEach { category ->
-                        DropdownMenuItem(
-                            text = { Text(category.label) },
-                            onClick = {
-                                viewModel.onCategoryChange(category)
-                                categoryMenuOpen = false
-                            },
-                        )
-                    }
+                    Text(type.label, style = MaterialTheme.typography.labelLarge)
                 }
             }
-            OutlinedTextField(
-                value = state.note,
-                onValueChange = viewModel::onNoteChange,
-                label = { Text("Nota") },
-                isError = state.noteError != null,
-                supportingText = { Text(state.noteError ?: "${state.note.length}/140") },
-                modifier = Modifier.fillMaxWidth(),
-            )
-            Button(
-                onClick = viewModel::save,
-                enabled = !state.saving,
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                Text(if (state.saving) "Guardando" else "Guardar")
-            }
-            TextButton(onClick = onCancel, modifier = Modifier.fillMaxWidth()) {
-                Text("Cancelar")
-            }
         }
-    }
-
-    if (showDatePicker) {
-        val pickerState = rememberDatePickerState(initialSelectedDateMillis = state.epochDay.toUtcMillis())
-        DatePickerDialog(
-            onDismissRequest = { showDatePicker = false },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        pickerState.selectedDateMillis?.let { millis ->
-                            val day = Instant.ofEpochMilli(millis).atZone(ZoneOffset.UTC).toLocalDate().toEpochDay().toInt()
-                            viewModel.onDateChange(day)
-                        }
-                        showDatePicker = false
-                    },
-                ) { Text("Aceptar") }
-            },
-            dismissButton = {
-                TextButton(onClick = { showDatePicker = false }) { Text("Cancelar") }
-            },
+        OutlinedTextField(
+            value = state.amountText,
+            onValueChange = onAmountChange,
+            label = { Text("Importe") },
+            prefix = { Text(currency) },
+            textStyle = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold),
+            isError = state.amountError != null,
+            supportingText = state.amountError?.let { message -> { Text(message) } },
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+            singleLine = true,
+            shape = RoundedCornerShape(12.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .focusRequester(amountFocus),
+        )
+        Text("Categoría", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            DatePicker(state = pickerState)
+            Category.entries.forEach { category ->
+                FilterChip(
+                    selected = state.category == category,
+                    onClick = { onCategoryChange(category) },
+                    label = { Text(category.label, style = MaterialTheme.typography.labelMedium) },
+                    leadingIcon = {
+                        Icon(category.icon(), contentDescription = null, modifier = Modifier.size(16.dp))
+                    },
+                    colors = categoryChipColors(),
+                    modifier = Modifier.height(32.dp),
+                )
+            }
+        }
+        OutlinedTextField(
+            value = state.epochDay.toEpochDayLabel(),
+            onValueChange = {},
+            readOnly = true,
+            label = { Text("Fecha") },
+            shape = RoundedCornerShape(12.dp),
+            modifier = Modifier.fillMaxWidth(),
+        )
+        TextButton(onClick = onPickDate, modifier = Modifier.height(48.dp)) { Text("Cambiar fecha") }
+        OutlinedTextField(
+            value = state.note,
+            onValueChange = onNoteChange,
+            label = { Text("Nota") },
+            supportingText = { Text("${state.note.length}/$NOTE_LIMIT") },
+            minLines = 2,
+            shape = RoundedCornerShape(12.dp),
+            modifier = Modifier.fillMaxWidth(),
+        )
+        if (state.saveError != null) {
+            Text(state.saveError, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodyMedium)
+        }
+        Button(
+            onClick = onSave,
+            enabled = !state.saving,
+            shape = RoundedCornerShape(16.dp),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = MaterialTheme.colorScheme.primary,
+                contentColor = MaterialTheme.colorScheme.onPrimary,
+            ),
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(48.dp),
+        ) {
+            Text(if (state.saving) "Guardando" else "Guardar", style = MaterialTheme.typography.labelLarge)
+        }
+        TextButton(onClick = onCancel, modifier = Modifier.fillMaxWidth().height(48.dp)) {
+            Text("Cancelar")
         }
     }
 }
 
-private fun Int.toDateLabel(locale: Locale = Locale.getDefault()): String {
-    return LocalDate.ofEpochDay(toLong())
-        .format(DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM).withLocale(locale))
+@Composable
+private fun categoryChipColors() = FilterChipDefaults.filterChipColors(
+    containerColor = MaterialTheme.colorScheme.secondaryContainer,
+    labelColor = MaterialTheme.colorScheme.onSecondaryContainer,
+    iconColor = MaterialTheme.colorScheme.onSecondaryContainer,
+    selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+    selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer,
+    selectedLeadingIconColor = MaterialTheme.colorScheme.onPrimaryContainer,
+)
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun ExpenseDatePicker(
+    epochDay: Int,
+    onConfirm: (Int) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val pickerState = rememberDatePickerState(initialSelectedDateMillis = epochDay.toUtcStartMillis())
+    DatePickerDialog(
+        onDismissRequest = onDismiss,
+        confirmButton = {
+            TextButton(
+                onClick = {
+                    pickerState.selectedDateMillis?.let { millis ->
+                        onConfirm(Instant.ofEpochMilli(millis).atZone(ZoneOffset.UTC).toLocalDate().toEpochDay().toInt())
+                    }
+                    onDismiss()
+                },
+            ) { Text("Aceptar") }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancelar") } },
+    ) {
+        DatePicker(state = pickerState)
+    }
 }
 
-private fun Int.toUtcMillis(): Long {
-    return LocalDate.ofEpochDay(toLong()).atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli()
+@Preview(showBackground = true, widthDp = 393, heightDp = 852)
+@Composable
+private fun FormEmptyLightPreview() {
+    GastosTheme {
+        EditingForm(
+            state = ExpenseFormUiState.Editing(),
+            amountFocus = remember { FocusRequester() },
+            onAmountChange = {},
+            onTypeChange = {},
+            onCategoryChange = {},
+            onNoteChange = {},
+            onPickDate = {},
+            onSave = {},
+            onCancel = {},
+        )
+    }
+}
+
+@Preview(showBackground = true, widthDp = 393, heightDp = 852, uiMode = Configuration.UI_MODE_NIGHT_YES)
+@Composable
+private fun FormEmptyDarkPreview() {
+    GastosTheme {
+        EditingForm(
+            state = ExpenseFormUiState.Editing(),
+            amountFocus = remember { FocusRequester() },
+            onAmountChange = {},
+            onTypeChange = {},
+            onCategoryChange = {},
+            onNoteChange = {},
+            onPickDate = {},
+            onSave = {},
+            onCancel = {},
+        )
+    }
+}
+
+@Preview(showBackground = true, widthDp = 393, heightDp = 852)
+@Composable
+private fun FormErrorPreview() {
+    GastosTheme {
+        EditingForm(
+            state = ExpenseFormUiState.Editing(amountText = "12,5099", amountError = "Máximo 2 decimales"),
+            amountFocus = remember { FocusRequester() },
+            onAmountChange = {},
+            onTypeChange = {},
+            onCategoryChange = {},
+            onNoteChange = {},
+            onPickDate = {},
+            onSave = {},
+            onCancel = {},
+        )
+    }
 }

@@ -2,7 +2,7 @@
 
 App Android offline para anotar gastos. No pide cuenta, no usa red y no declara el permiso `INTERNET`.
 
-La versión actual es **0.1.1**, una pre-release para probar en un dispositivo. No está publicada en Play.
+La versión actual es **0.2.0**, una pre-release para probar en un dispositivo. No está publicada en Play.
 
 ## Qué hace
 
@@ -38,15 +38,13 @@ El APK queda en `app/build/outputs/apk/debug/app-debug.apk`.
 
 ## Instalar la pre-release 0.1.0
 
-1. Descarga `gestor-de-gastos-0.1.1-debug.apk` desde la pre-release `v0.1.1`.
+1. Descarga `gestor-de-gastos-0.2.0-debug.apk` desde la pre-release `v0.2.0`.
 2. En el teléfono, permite instalar apps de origen desconocido.
 3. Abre el APK e instálalo.
 
 Es un APK debug, firmado con la clave de depuración. Sirve para probar, no para Play. Si más adelante instalas un build firmado con otra clave, Android pedirá desinstalar esta copia. Desinstalar borra los gastos.
 
-`0.1.1` corrige dos fallos de `0.1.0`: `12,50` se guardaba como 1.250,00, y pulsar Guardar dos veces creaba dos gastos.
-
-Al probar, recorre esto en modo avión: anotar `12,50`, ver el total del mes, filtrar por categoría, corregir, borrar y deshacer, y matar la app y comprobar que los datos siguen ahí. Si ya tenías la 0.1.0, instala esta encima. La firma debug es la misma, así que no borra los gastos.
+`0.2.0` cambia la interfaz al diseño teal e incorpora ingresos y balance. Si ya tenías la 0.1.1, instala esta encima. La firma debug es la misma y los gastos anteriores se conservan como tipo Gasto.
 
 ## Qué no incluye
 

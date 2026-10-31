@@ -7,4 +7,5 @@ data class Expense(
     val category: Category,
     val note: String,
     val createdAt: Long,
+    val type: MovementType = MovementType.GASTO,
 )
