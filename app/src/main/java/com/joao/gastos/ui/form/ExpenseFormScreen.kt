@@ -190,7 +190,7 @@ private fun EditingForm(
                 .horizontalScroll(rememberScrollState()),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            Category.entries.forEach { category ->
+            Category.forType(state.type).forEach { category ->
                 FilterChip(
                     selected = state.category == category,
                     onClick = { onCategoryChange(category) },

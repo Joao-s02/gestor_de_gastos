@@ -78,6 +78,7 @@ class ExpenseFormViewModel(
                     savedState[KEY_CATEGORY] = expense.category.name
                     savedState[KEY_NOTE] = expense.note
                     savedState[KEY_CREATED_AT] = expense.createdAt
+                    alignCategory(expense.type)
                 }
                 loading.value = false
             }
@@ -96,6 +97,7 @@ class ExpenseFormViewModel(
 
     fun onTypeChange(type: MovementType) {
         savedState[KEY_TYPE] = type.name
+        alignCategory(type)
     }
 
     fun onCategoryChange(category: Category) {
@@ -147,6 +149,12 @@ class ExpenseFormViewModel(
         } else {
             ExpenseFormUiState.Editing(isEditing = expenseId != null)
         }
+    }
+
+    private fun alignCategory(type: MovementType) {
+        val current = categoryName.value.toCategory()
+        if (current.allows(type)) return
+        savedState[KEY_CATEGORY] = Category.forType(type).first().name
     }
 
     private fun String.toCategory(): Category = Category.fromStored(this) ?: Category.Comida

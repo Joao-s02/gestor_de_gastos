@@ -2,7 +2,7 @@
 
 App Android offline para anotar gastos. No pide cuenta, no usa red y no declara el permiso `INTERNET`.
 
-La versión actual es **0.2.0**, una pre-release para probar en un dispositivo. No está publicada en Play.
+La versión actual es **0.2.1**, una pre-release para probar en un dispositivo. No está publicada en Play.
 
 ## Qué hace
 
@@ -38,7 +38,7 @@ El APK queda en `app/build/outputs/apk/debug/app-debug.apk`.
 
 ## Instalar la pre-release 0.1.0
 
-1. Descarga `gestor-de-gastos-0.2.0-debug.apk` desde la pre-release `v0.2.0`.
+1. Descarga `gestor-de-gastos-0.2.1-debug.apk` desde la pre-release `v0.2.1`.
 2. En el teléfono, permite instalar apps de origen desconocido.
 3. Abre el APK e instálalo.
 

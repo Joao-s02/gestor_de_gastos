@@ -57,7 +57,7 @@ object ExpenseListSamples {
             id = 3,
             amountCents = 180_000,
             epochDay = LocalDate.of(2026, 10, 1).toEpochDay().toInt(),
-            category = Category.Servicios,
+            category = Category.Salario,
             note = "Nómina",
             createdAt = 1,
             type = MovementType.INGRESO,
