@@ -377,10 +377,10 @@ private fun MovementLine(
             modifier = Modifier
                 .fillMaxWidth()
                 .heightIn(min = 64.dp)
-                .clickable(onClick = onEdit)
+                .clickable(onClick = onEdit, role = Role.Button)
                 .padding(horizontal = 16.dp, vertical = 12.dp)
                 .semantics {
-                    contentDescription = "${expense.category.label}, ${expense.type.label}"
+                    contentDescription = movementDescription(expense)
                     customActions = listOf(
                         CustomAccessibilityAction("Borrar movimiento", action = { onDelete(); true }),
                     )
@@ -442,6 +442,11 @@ private fun MovementLine(
         }
         HorizontalDivider(color = MaterialTheme.colorScheme.outline, modifier = Modifier.padding(start = 16.dp))
     }
+}
+
+private fun movementDescription(expense: Expense): String {
+    val note = if (expense.note.isBlank()) "" else ", ${expense.note}"
+    return "${expense.category.label}, ${expense.type.label}, ${signedAmount(expense.type, expense.amountCents)}, ${expense.epochDay.toEpochDayLabel()}$note"
 }
 
 private fun signedAmount(type: MovementType, cents: Long): String {
@@ -634,5 +639,21 @@ private fun ListEmptyPreview() {
 private fun ListLoadingPreview() {
     PreviewHost {
         ExpenseListContent(ExpenseListSamples.loading, SnackbarHostState(), {}, {}, {}, {}, {}, {}, {})
+    }
+}
+
+@Preview(showBackground = true, widthDp = 393, heightDp = 852)
+@Composable
+private fun ListErrorPreview() {
+    PreviewHost {
+        ExpenseListContent(ExpenseListSamples.error, SnackbarHostState(), {}, {}, {}, {}, {}, {}, {})
+    }
+}
+
+@Preview(showBackground = true, widthDp = 393, heightDp = 852, fontScale = 1.5f)
+@Composable
+private fun ListReadyLargeTextPreview() {
+    PreviewHost {
+        ExpenseListContent(ExpenseListSamples.ready, SnackbarHostState(), {}, {}, {}, {}, {}, {}, {})
     }
 }

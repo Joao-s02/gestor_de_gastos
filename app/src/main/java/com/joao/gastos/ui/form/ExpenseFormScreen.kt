@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -56,6 +57,7 @@ import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -165,6 +167,7 @@ private fun EditingForm(
     onCancel: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val noteFocus = remember { FocusRequester() }
     val amountColor = moneyColor(state.type)
     val fieldColors = TextFieldDefaults.colors(
         focusedContainerColor = Color.Transparent,
@@ -199,7 +202,11 @@ private fun EditingForm(
             textStyle = MaterialTheme.typography.displaySmall.copy(color = amountColor),
             isError = state.amountError != null,
             supportingText = state.amountError?.let { message -> { Text(message) } },
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+            keyboardOptions = KeyboardOptions(
+                keyboardType = KeyboardType.Decimal,
+                imeAction = ImeAction.Next,
+            ),
+            keyboardActions = KeyboardActions(onNext = { noteFocus.requestFocus() }),
             singleLine = true,
             colors = fieldColors,
             modifier = Modifier
@@ -246,6 +253,8 @@ private fun EditingForm(
             onValueChange = onNoteChange,
             label = { Text("Nota") },
             supportingText = { Text("${state.note.length} de $NOTE_LIMIT") },
+            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+            keyboardActions = KeyboardActions(onDone = { if (!state.saving) onSave() }),
             minLines = 2,
             colors = TextFieldDefaults.colors(
                 focusedContainerColor = Color.Transparent,
@@ -257,7 +266,9 @@ private fun EditingForm(
                 focusedLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
                 unfocusedLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
             ),
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .focusRequester(noteFocus),
         )
         if (state.saveError != null) {
             Text(state.saveError, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodyLarge)

@@ -7,6 +7,9 @@ import androidx.compose.material3.Shapes
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.joao.gastos.model.MovementType
@@ -35,6 +38,16 @@ private val LightColors = lightColorScheme(
     surfaceVariant = SurfaceVariant,
     onSurfaceVariant = OnSurfaceVariant,
     outline = Outline,
+    outlineVariant = Pauta,
+    surfaceTint = Bosque,
+    inverseSurface = Bosque,
+    inverseOnSurface = Marfil,
+    inversePrimary = Salvia,
+    surfaceContainerLowest = Marfil,
+    surfaceContainerLow = Color(0xFFEEF2E8),
+    surfaceContainer = Color(0xFFE7EEE4),
+    surfaceContainerHigh = Color(0xFFE1E9DC),
+    surfaceContainerHighest = Color(0xFFDBE4D4),
 )
 
 private val DarkColors = darkColorScheme(
@@ -61,6 +74,16 @@ private val DarkColors = darkColorScheme(
     surfaceVariant = SurfaceVariantDark,
     onSurfaceVariant = OnSurfaceVariantDark,
     outline = OutlineDark,
+    outlineVariant = PautaOscura,
+    surfaceTint = Bosque,
+    inverseSurface = Marfil,
+    inverseOnSurface = Bosque,
+    inversePrimary = Salvia,
+    surfaceContainerLowest = Color(0xFF102E28),
+    surfaceContainerLow = Color(0xFF18463E),
+    surfaceContainer = SuperficieOscura,
+    surfaceContainerHigh = Color(0xFF245E54),
+    surfaceContainerHighest = Color(0xFF2A685C),
 )
 
 private val AppShapes = Shapes(
@@ -71,40 +94,71 @@ private val AppShapes = Shapes(
     extraLarge = RoundedCornerShape(24.dp),
 )
 
+@Immutable
+data class YescaColors(
+    val income: Color,
+    val expense: Color,
+    val balanceNeutral: Color,
+    val balanceCard: Color,
+    val onBalanceCard: Color,
+)
+
+private val LightYesca = YescaColors(
+    income = IncomeLight,
+    expense = ExpenseLight,
+    balanceNeutral = BalanceNeutralLight,
+    balanceCard = Salvia,
+    onBalanceCard = Bosque,
+)
+
+private val DarkYesca = YescaColors(
+    income = IncomeDark,
+    expense = ExpenseDark,
+    balanceNeutral = BalanceNeutralDark,
+    balanceCard = SurfaceVariantDark,
+    onBalanceCard = Marfil,
+)
+
+val LocalYescaColors = staticCompositionLocalOf { LightYesca }
+
 @Composable
 fun GastosTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
     content: @Composable () -> Unit,
 ) {
-    MaterialTheme(
-        colorScheme = if (darkTheme) DarkColors else LightColors,
-        typography = Typography,
-        shapes = AppShapes,
-        content = content,
-    )
+    // La paleta institucional no sigue el wallpaper. Dynamic color rompería Yesca.
+    val yesca = if (darkTheme) DarkYesca else LightYesca
+    CompositionLocalProvider(LocalYescaColors provides yesca) {
+        MaterialTheme(
+            colorScheme = if (darkTheme) DarkColors else LightColors,
+            typography = Typography,
+            shapes = AppShapes,
+            content = content,
+        )
+    }
 }
 
 @Composable
 fun moneyColor(type: MovementType): Color {
-    val dark = isSystemInDarkTheme()
+    val colors = LocalYescaColors.current
     return when (type) {
-        MovementType.INGRESO -> if (dark) IncomeDark else IncomeLight
-        MovementType.GASTO -> if (dark) ExpenseDark else ExpenseLight
+        MovementType.INGRESO -> colors.income
+        MovementType.GASTO -> colors.expense
     }
 }
 
 @Composable
 fun balanceColor(cents: Long): Color {
-    val dark = isSystemInDarkTheme()
+    val colors = LocalYescaColors.current
     return when {
-        cents > 0L -> if (dark) IncomeDark else IncomeLight
-        cents < 0L -> if (dark) ExpenseDark else ExpenseLight
-        else -> if (dark) BalanceNeutralDark else BalanceNeutralLight
+        cents > 0L -> colors.income
+        cents < 0L -> colors.expense
+        else -> colors.balanceNeutral
     }
 }
 
 @Composable
-fun balanceCardColor(): Color = if (isSystemInDarkTheme()) SurfaceVariantDark else Salvia
+fun balanceCardColor(): Color = LocalYescaColors.current.balanceCard
 
 @Composable
-fun balanceCardContentColor(): Color = if (isSystemInDarkTheme()) Marfil else Bosque
+fun balanceCardContentColor(): Color = LocalYescaColors.current.onBalanceCard
