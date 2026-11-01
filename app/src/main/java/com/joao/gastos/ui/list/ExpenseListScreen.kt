@@ -1,8 +1,8 @@
 package com.joao.gastos.ui.list
 
 import android.content.res.Configuration
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -12,26 +12,23 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
 import androidx.compose.material.icons.rounded.Add
-import androidx.compose.material.icons.rounded.Delete
-import androidx.compose.material.icons.rounded.Error
-import androidx.compose.material.icons.automirrored.rounded.ReceiptLong
+import androidx.compose.material.icons.rounded.Remove
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -41,13 +38,10 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SwipeToDismissBox
 import androidx.compose.material3.SwipeToDismissBoxValue
-import androidx.compose.material3.Surface
-import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -57,22 +51,26 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.CustomAccessibilityAction
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.customActions
+import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.joao.gastos.R
 import com.joao.gastos.model.Expense
 import com.joao.gastos.model.Money
 import com.joao.gastos.model.MovementType
 import com.joao.gastos.ui.icon
 import com.joao.gastos.ui.theme.GastosTheme
+import com.joao.gastos.ui.theme.balanceCardColor
+import com.joao.gastos.ui.theme.balanceCardContentColor
 import com.joao.gastos.ui.theme.balanceColor
 import com.joao.gastos.ui.theme.moneyColor
 import com.joao.gastos.ui.toEpochDayLabel
@@ -138,7 +136,6 @@ fun ExpenseListScreen(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun ExpenseListContent(
     state: ExpenseListUiState,
@@ -154,41 +151,30 @@ private fun ExpenseListContent(
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
         topBar = {
-            TopAppBar(
-                title = {
-                    Text(
-                        text = state.month.toMonthLabel(),
-                        style = MaterialTheme.typography.titleLarge,
-                        modifier = Modifier.clickable(onClick = onOpenMonth),
-                    )
-                },
-                navigationIcon = {
-                    IconButton(onClick = onPreviousMonth, modifier = Modifier.size(48.dp)) {
-                        Icon(Icons.AutoMirrored.Rounded.KeyboardArrowLeft, contentDescription = "Mes anterior")
-                    }
-                },
-                actions = {
-                    IconButton(onClick = onNextMonth, modifier = Modifier.size(48.dp)) {
-                        Icon(Icons.AutoMirrored.Rounded.KeyboardArrowRight, contentDescription = "Mes siguiente")
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surface,
-                    titleContentColor = MaterialTheme.colorScheme.onSurface,
-                    navigationIconContentColor = MaterialTheme.colorScheme.onSurface,
-                    actionIconContentColor = MaterialTheme.colorScheme.onSurface,
-                ),
+            MonthHeader(
+                label = state.month.toMonthLabel(),
+                onPrevious = onPreviousMonth,
+                onNext = onNextMonth,
+                onOpen = onOpenMonth,
             )
         },
-        floatingActionButton = {
-            FloatingActionButton(
-                onClick = onAdd,
-                containerColor = MaterialTheme.colorScheme.primaryContainer,
-                contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                shape = RoundedCornerShape(16.dp),
-                modifier = Modifier.size(56.dp),
-            ) {
-                Icon(Icons.Rounded.Add, contentDescription = "Agregar movimiento")
+        bottomBar = {
+            Column(modifier = Modifier.background(MaterialTheme.colorScheme.background)) {
+                HorizontalDivider(color = MaterialTheme.colorScheme.outline)
+                Button(
+                    onClick = onAdd,
+                    shape = MaterialTheme.shapes.large,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        contentColor = MaterialTheme.colorScheme.onPrimary,
+                    ),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp)
+                        .heightIn(min = 48.dp),
+                ) {
+                    Text("Registrar movimiento", style = MaterialTheme.typography.labelLarge)
+                }
             }
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },
@@ -196,8 +182,7 @@ private fun ExpenseListContent(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(padding)
-                .padding(top = 8.dp),
+                .padding(padding),
         ) {
             when (state) {
                 is ExpenseListUiState.Loading -> LoadingState()
@@ -214,25 +199,69 @@ private fun ExpenseListContent(
 }
 
 @Composable
+private fun MonthHeader(
+    label: String,
+    onPrevious: () -> Unit,
+    onNext: () -> Unit,
+    onOpen: () -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(MaterialTheme.colorScheme.background)
+            .padding(start = 12.dp, end = 4.dp, top = 8.dp, bottom = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Image(
+            painter = painterResource(R.drawable.ic_launcher),
+            contentDescription = "Yesca",
+            contentScale = ContentScale.Fit,
+            modifier = Modifier
+                .padding(4.dp)
+                .size(40.dp),
+        )
+        Text(
+            text = label,
+            style = MaterialTheme.typography.titleLarge,
+            color = MaterialTheme.colorScheme.onBackground,
+            modifier = Modifier
+                .weight(1f)
+                .padding(start = 8.dp)
+                .clickable(onClick = onOpen, role = Role.Button)
+                .heightIn(min = 48.dp)
+                .semantics { contentDescription = "$label, elegir mes" },
+        )
+        IconButton(onClick = onPrevious, modifier = Modifier.size(48.dp)) {
+            Icon(Icons.AutoMirrored.Rounded.KeyboardArrowLeft, contentDescription = "Mes anterior")
+        }
+        IconButton(onClick = onNext, modifier = Modifier.size(48.dp)) {
+            Icon(Icons.AutoMirrored.Rounded.KeyboardArrowRight, contentDescription = "Mes siguiente")
+        }
+    }
+}
+
+@Composable
 private fun ReadyList(
     state: ExpenseListUiState.Ready,
     onEdit: (Long) -> Unit,
     onDelete: (Long) -> Unit,
 ) {
-    LazyColumn(
-        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 88.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
+    LazyColumn(contentPadding = PaddingValues(bottom = 16.dp)) {
         item {
-            SummaryCard(
+            LedgerSummary(
                 incomeCents = state.incomeCents,
                 expenseCents = state.expenseCents,
                 balanceCents = state.balanceCents,
             )
-            Spacer(Modifier.height(16.dp))
+            Text(
+                text = "Movimientos",
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onBackground,
+                modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 8.dp),
+            )
         }
         items(state.expenses, key = { it.id }) { expense ->
-            SwipeToDeleteCard(
+            SwipeToDeleteLine(
                 expense = expense,
                 onEdit = { onEdit(expense.id) },
                 onDelete = { onDelete(expense.id) },
@@ -242,58 +271,71 @@ private fun ReadyList(
 }
 
 @Composable
-private fun SummaryCard(
+private fun LedgerSummary(
     incomeCents: Long,
     expenseCents: Long,
     balanceCents: Long,
 ) {
-    Surface(
-        color = MaterialTheme.colorScheme.primaryContainer,
-        contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-        shape = RoundedCornerShape(16.dp),
-        shadowElevation = 0.dp,
-        modifier = Modifier.fillMaxWidth(),
-    ) {
-        Row(
-            modifier = Modifier.padding(16.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
+    Column(modifier = Modifier.padding(16.dp)) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(balanceCardColor(), MaterialTheme.shapes.large)
+                .padding(20.dp),
         ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text("Balance", style = MaterialTheme.typography.labelMedium)
-                Text(
-                    text = Money.format(balanceCents),
-                    style = MaterialTheme.typography.displaySmall,
-                    fontWeight = FontWeight.Bold,
-                    color = balanceColor(balanceCents),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            }
-            Column(horizontalAlignment = Alignment.End) {
-                Text("Ingresos", style = MaterialTheme.typography.labelMedium, color = moneyColor(MovementType.INGRESO))
-                Text(
-                    text = Money.format(incomeCents),
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = moneyColor(MovementType.INGRESO),
-                )
-                Spacer(Modifier.height(8.dp))
-                Text("Gastos", style = MaterialTheme.typography.labelMedium, color = moneyColor(MovementType.GASTO))
-                Text(
-                    text = Money.format(expenseCents),
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = moneyColor(MovementType.GASTO),
-                )
-            }
+            Text(
+                text = "Balance del mes",
+                style = MaterialTheme.typography.bodyLarge,
+                color = balanceCardContentColor(),
+            )
+            Text(
+                text = Money.format(balanceCents),
+                style = MaterialTheme.typography.displaySmall,
+                color = balanceCardContentColor(),
+            )
         }
+        Spacer(Modifier.padding(top = 12.dp))
+        TotalRow(label = "Ingresos", cents = incomeCents, type = MovementType.INGRESO)
+        Spacer(Modifier.padding(top = 4.dp))
+        TotalRow(label = "Gastos", cents = expenseCents, type = MovementType.GASTO)
+    }
+}
+
+@Composable
+private fun TotalRow(label: String, cents: Long, type: MovementType) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(min = 48.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(
+                imageVector = if (type == MovementType.INGRESO) Icons.Rounded.Add else Icons.Rounded.Remove,
+                contentDescription = null,
+                tint = moneyColor(type),
+                modifier = Modifier.size(16.dp),
+            )
+            Text(
+                text = label,
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(start = 8.dp),
+            )
+        }
+        Text(
+            text = signedAmount(type, cents),
+            style = MaterialTheme.typography.bodyLarge,
+            color = moneyColor(type),
+            textAlign = TextAlign.End,
+        )
     }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun SwipeToDeleteCard(
+private fun SwipeToDeleteLine(
     expense: Expense,
     onEdit: () -> Unit,
     onDelete: () -> Unit,
@@ -311,93 +353,117 @@ private fun SwipeToDeleteCard(
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .clip(RoundedCornerShape(16.dp))
-                    .background(MaterialTheme.colorScheme.errorContainer)
-                    .padding(16.dp),
+                    .background(MaterialTheme.colorScheme.error)
+                    .padding(horizontal = 16.dp),
                 contentAlignment = Alignment.CenterEnd,
             ) {
-                Icon(
-                    Icons.Rounded.Delete,
-                    contentDescription = "Borrar movimiento",
-                    tint = MaterialTheme.colorScheme.onErrorContainer,
-                )
+                Text("Borrar", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onError)
             }
         },
     ) {
-        MovementCard(expense = expense, onEdit = onEdit, onDelete = onDelete)
+        MovementLine(expense = expense, onEdit = onEdit, onDelete = onDelete)
     }
 }
 
 @Composable
-private fun MovementCard(
+private fun MovementLine(
     expense: Expense,
     onEdit: () -> Unit,
     onDelete: () -> Unit,
 ) {
     val amountColor = moneyColor(expense.type)
-    val prefix = if (expense.type == MovementType.INGRESO) "+" else "−"
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(16.dp))
-            .border(1.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(16.dp))
-            .background(MaterialTheme.colorScheme.surface)
-            .clickable(onClick = onEdit)
-            .semantics {
-                contentDescription = "${expense.category.label}, ${expense.type.label}"
-                customActions = listOf(CustomAccessibilityAction("Borrar movimiento", action = { onDelete(); true }))
-            }
-            .padding(16.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Box(
+    Column(modifier = Modifier.background(MaterialTheme.colorScheme.background)) {
+        Row(
             modifier = Modifier
-                .size(40.dp)
-                .clip(CircleShape)
-                .background(MaterialTheme.colorScheme.secondaryContainer),
-            contentAlignment = Alignment.Center,
+                .fillMaxWidth()
+                .heightIn(min = 64.dp)
+                .clickable(onClick = onEdit)
+                .padding(horizontal = 16.dp, vertical = 12.dp)
+                .semantics {
+                    contentDescription = "${expense.category.label}, ${expense.type.label}"
+                    customActions = listOf(
+                        CustomAccessibilityAction("Borrar movimiento", action = { onDelete(); true }),
+                    )
+                },
+            verticalAlignment = Alignment.CenterVertically,
         ) {
             Icon(
                 imageVector = expense.category.icon(),
                 contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSecondaryContainer,
+                tint = MaterialTheme.colorScheme.onSurface,
                 modifier = Modifier.size(24.dp),
             )
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(start = 12.dp, end = 12.dp),
+            ) {
+                Text(
+                    text = expense.category.label,
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+                Text(
+                    text = expense.type.label,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = amountColor,
+                )
+                Text(
+                    text = expense.epochDay.toEpochDayLabel(),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                if (expense.note.isNotBlank()) {
+                    Text(
+                        text = expense.note,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurface,
+                    )
+                }
+            }
+            Row(
+                modifier = Modifier.widthIn(min = 48.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Icon(
+                    imageVector = if (expense.type == MovementType.INGRESO) Icons.Rounded.Add else Icons.Rounded.Remove,
+                    contentDescription = null,
+                    tint = amountColor,
+                    modifier = Modifier.size(16.dp),
+                )
+                Text(
+                    text = Money.format(expense.amountCents),
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = amountColor,
+                    textAlign = TextAlign.End,
+                    modifier = Modifier.padding(start = 4.dp),
+                )
+            }
         }
-        Column(
-            modifier = Modifier
-                .weight(1f)
-                .padding(start = 12.dp, end = 12.dp),
-        ) {
-            Text(expense.category.label, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface)
-            Text(
-                text = listOf(expense.epochDay.toEpochDayLabel(), expense.note).filter { it.isNotBlank() }.joinToString(" · "),
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-        }
-        Text(
-            text = prefix + Money.format(expense.amountCents),
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.Bold,
-            color = amountColor,
-            textAlign = TextAlign.End,
-        )
+        HorizontalDivider(color = MaterialTheme.colorScheme.outline, modifier = Modifier.padding(start = 16.dp))
     }
+}
+
+private fun signedAmount(type: MovementType, cents: Long): String {
+    val sign = if (type == MovementType.INGRESO) "+" else "−"
+    return sign + " " + Money.format(cents)
 }
 
 @Composable
 private fun LoadingState() {
     Column(
-        modifier = Modifier.fillMaxSize(),
-        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp),
         verticalArrangement = Arrangement.Center,
     ) {
         CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
-        Spacer(Modifier.height(16.dp))
-        Text("Cargando…", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface)
+        Text(
+            "Cargando movimientos",
+            style = MaterialTheme.typography.bodyLarge,
+            color = MaterialTheme.colorScheme.onSurface,
+            modifier = Modifier.padding(top = 16.dp),
+        )
     }
 }
 
@@ -406,24 +472,19 @@ private fun EmptyState() {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(horizontal = 16.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
+            .padding(16.dp),
         verticalArrangement = Arrangement.Center,
     ) {
-        Icon(
-            Icons.AutoMirrored.Rounded.ReceiptLong,
-            contentDescription = null,
-            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.size(64.dp),
-        )
-        Spacer(Modifier.height(16.dp))
-        Text("Sin movimientos este mes", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface)
-        Spacer(Modifier.height(8.dp))
         Text(
-            "Toca + para agregar el primero",
-            style = MaterialTheme.typography.bodyMedium,
+            "Este mes no tiene movimientos.",
+            style = MaterialTheme.typography.titleMedium,
+            color = MaterialTheme.colorScheme.onSurface,
+        )
+        Text(
+            "Registra el primero con el botón de abajo.",
+            style = MaterialTheme.typography.bodyLarge,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
-            textAlign = TextAlign.Center,
+            modifier = Modifier.padding(top = 8.dp),
         )
     }
 }
@@ -433,18 +494,16 @@ private fun ErrorState(message: String, onRetry: () -> Unit) {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(horizontal = 16.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
+            .padding(16.dp),
         verticalArrangement = Arrangement.Center,
     ) {
-        Icon(Icons.Rounded.Error, contentDescription = null, tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(48.dp))
-        Spacer(Modifier.height(16.dp))
-        Text(message, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.error, textAlign = TextAlign.Center)
-        Spacer(Modifier.height(16.dp))
+        Text(message, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.error)
         Button(
             onClick = onRetry,
-            shape = RoundedCornerShape(16.dp),
-            modifier = Modifier.height(48.dp),
+            shape = MaterialTheme.shapes.large,
+            modifier = Modifier
+                .padding(top = 16.dp)
+                .heightIn(min = 48.dp),
         ) {
             Text("Reintentar", style = MaterialTheme.typography.labelLarge)
         }
@@ -458,15 +517,17 @@ private fun DeleteMovementDialog(
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("¿Borrar movimiento?") },
+        title = { Text("¿Borrar este movimiento?") },
         text = { Text("Esta acción no se puede deshacer.") },
         confirmButton = {
-            TextButton(onClick = onConfirm) {
+            TextButton(onClick = onConfirm, modifier = Modifier.heightIn(min = 48.dp)) {
                 Text("Borrar", color = MaterialTheme.colorScheme.error)
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text("Cancelar") }
+            TextButton(onClick = onDismiss, modifier = Modifier.heightIn(min = 48.dp)) {
+                Text("Cancelar")
+            }
         },
     )
 }
@@ -480,8 +541,9 @@ private fun MonthSheet(
 ) {
     val sheetState = rememberModalBottomSheetState()
     var year by rememberSaveable { mutableIntStateOf(selected.year) }
+    val locale = Locale.getDefault()
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
-        Column(modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 32.dp)) {
+        Column(modifier = Modifier.padding(start = 8.dp, end = 8.dp, bottom = 24.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
                 IconButton(onClick = { year -= 1 }, modifier = Modifier.size(48.dp)) {
                     Icon(Icons.AutoMirrored.Rounded.KeyboardArrowLeft, contentDescription = "Año anterior")
@@ -496,17 +558,41 @@ private fun MonthSheet(
                     Icon(Icons.AutoMirrored.Rounded.KeyboardArrowRight, contentDescription = "Año siguiente")
                 }
             }
-            Spacer(Modifier.height(16.dp))
             Month.entries.chunked(3).forEach { row ->
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp)) {
+                Row(modifier = Modifier.fillMaxWidth()) {
                     row.forEach { month ->
                         val value = YearMonth.of(year, month)
-                        FilterChip(
-                            selected = value == selected,
+                        val isSelected = value == selected
+                        TextButton(
                             onClick = { onSelect(value) },
-                            label = { Text(month.getDisplayName(TextStyle.SHORT, Locale.getDefault()), style = MaterialTheme.typography.labelMedium) },
-                            modifier = Modifier.weight(1f).height(32.dp),
-                        )
+                            shape = MaterialTheme.shapes.small,
+                            colors = ButtonDefaults.textButtonColors(
+                                containerColor = if (isSelected) {
+                                    MaterialTheme.colorScheme.primaryContainer
+                                } else {
+                                    MaterialTheme.colorScheme.surface
+                                },
+                                contentColor = if (isSelected) {
+                                    MaterialTheme.colorScheme.onPrimaryContainer
+                                } else {
+                                    MaterialTheme.colorScheme.onSurface
+                                },
+                            ),
+                            modifier = Modifier
+                                .weight(1f)
+                                .heightIn(min = 48.dp)
+                                .semantics { this.selected = isSelected },
+                        ) {
+                            Text(
+                                text = month.getDisplayName(TextStyle.SHORT, locale)
+                                    .replaceFirstChar { if (it.isLowerCase()) it.titlecase(locale) else it.toString() },
+                                style = if (isSelected) {
+                                    MaterialTheme.typography.labelMedium
+                                } else {
+                                    MaterialTheme.typography.bodySmall
+                                },
+                            )
+                        }
                     }
                 }
             }

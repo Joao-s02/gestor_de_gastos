@@ -64,11 +64,11 @@ private val DarkColors = darkColorScheme(
 )
 
 private val AppShapes = Shapes(
-    extraSmall = RoundedCornerShape(12.dp),
-    small = RoundedCornerShape(12.dp),
-    medium = RoundedCornerShape(16.dp),
-    large = RoundedCornerShape(16.dp),
-    extraLarge = RoundedCornerShape(16.dp),
+    extraSmall = RoundedCornerShape(16.dp),
+    small = RoundedCornerShape(16.dp),
+    medium = RoundedCornerShape(20.dp),
+    large = RoundedCornerShape(24.dp),
+    extraLarge = RoundedCornerShape(24.dp),
 )
 
 @Composable
@@ -102,3 +102,9 @@ fun balanceColor(cents: Long): Color {
         else -> if (dark) BalanceNeutralDark else BalanceNeutralLight
     }
 }
+
+@Composable
+fun balanceCardColor(): Color = if (isSystemInDarkTheme()) SurfaceVariantDark else Salvia
+
+@Composable
+fun balanceCardContentColor(): Color = if (isSystemInDarkTheme()) Marfil else Bosque
